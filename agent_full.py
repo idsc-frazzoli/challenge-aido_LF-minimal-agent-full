@@ -1,27 +1,36 @@
 #!/usr/bin/env python3
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import cast, Optional
 
 import numpy as np
+import yaml
 
-from aido_schemas import (Duckiebot1Commands, Duckiebot1ObservationsPlusState, EpisodeStart, get_blinking_LEDs_left,
-                          jpg2rgb, JPGImage, protocol_agent_duckiebot1_fullstate, PWMCommands)
-from aido_schemas.protocol_agent import GetCommands
+from aido_agents import get_blinking_LEDs_left, get_blinking_LEDs_right, jpg2rgb
+from aido_schemas import (Duckiebot1Commands, Duckiebot1ObservationsPlusState, EpisodeStart, GetCommands, JPGImage,
+                          protocol_agent_duckiebot1_fullstate, PWMCommands)
+from duckietown_world import construct_map, DuckietownMap, GetLanePoseResult
+from duckietown_world.world_duckietown import get_lane_poses
 from zuper_nodes_wrapper import Context, wrap_direct
+from zuper_typing import debug_print
 
 
 @dataclass
-class MinimalAgentConfig:
-    pwm_left_interval: Tuple[float, float] = (0.25, 0.3)
-    pwm_right_interval: Tuple[float, float] = (0.25, 0.3)
+class FullAgentConfig:
+    pass
 
 
-class MinimalAgent:
-    config: MinimalAgentConfig = MinimalAgentConfig()
+class FullAgent:
+    config: FullAgentConfig = FullAgentConfig()
+    dtmap: Optional[DuckietownMap]
 
     def init(self, context: Context):
-        context.info("init()")
+        context.info("FullAgent init()")
+        self.dtmap = None
+
+    def _init_map(self, map_data: dict):
+        self.dtmap = construct_map(map_data)
+        print(self.dtmap)
 
     def on_received_seed(self, data: int):
         np.random.seed(data)
@@ -32,36 +41,60 @@ class MinimalAgent:
 
     def on_received_observations(self, context: Context, data: Duckiebot1ObservationsPlusState):
         myname = data.your_name
-        context.info(f'myname {myname}')
-        state = data.state.duckiebots
-        context.info(f'state {state}')
+        # context.info(f'myname {myname}')
+        # state = data.state.duckiebots
+
+        if self.dtmap is None:
+            context.info('Loading map')
+            yaml_str = cast(str, data.map_data)
+            map_data = yaml.load(yaml_str, Loader=yaml.SafeLoader)
+            self._init_map(map_data)
+            context.info('Loading map done')
+
+        mystate = data.state.duckiebots[myname]
+        self.pose = mystate.pose
+
+        # context.info(f'state {state}')
         # Get the JPG image
         camera: JPGImage = data.camera
         # Convert to numpy array
         _rgb = jpg2rgb(camera.jpg_data)
 
     def on_received_get_commands(self, context: Context, data: GetCommands):
-        # compute random commands
-        l, u = self.config.pwm_left_interval
-        pwm_left = np.random.uniform(l, u)
-        l, u = self.config.pwm_right_interval
-        pwm_right = np.random.uniform(l, u)
-        pwm_commands = PWMCommands(motor_left=pwm_left, motor_right=pwm_right)
+        pose: np.array = self.pose
 
-        # Set LEDs to the "blinking left" pattern
-        led_commands = get_blinking_LEDs_left(data.at_time)
+        # context.info('Which lane am I in?')
+
+        possibilities = list(get_lane_poses(self.dtmap, pose))
+        glpr: GetLanePoseResult = possibilities[0]
+        lane_pose = glpr.lane_pose
+        # context.info(debug_print(lane_pose))
+        #
+        k = 0.1
+        speed = 0.1
+        turn = -k * lane_pose.relative_heading
+
+        pwm_left = speed - turn
+        pwm_right = speed + turn
+
+        pwm_commands = PWMCommands(motor_left=pwm_left, motor_right=pwm_right)
+        if turn > 0:
+            led_commands = get_blinking_LEDs_left(data.at_time)
+        else:
+            led_commands = get_blinking_LEDs_right(data.at_time)
 
         # commands = PWM + LED
         commands = Duckiebot1Commands(pwm_commands, led_commands)
         # write them out
         context.write("commands", commands)
+        context.info('commands computed')
 
     def finish(self, context: Context):
         context.info("finish()")
 
 
 def main() -> None:
-    node = MinimalAgent()
+    node = FullAgent()
     protocol = protocol_agent_duckiebot1_fullstate
     wrap_direct(node=node, protocol=protocol)
 
