@@ -6,7 +6,7 @@ from typing import cast, Optional
 import numpy as np
 import yaml
 
-from aido_agents import get_blinking_LEDs_left, get_blinking_LEDs_right, jpg2rgb
+from aido_agents import get_blinking_LEDs_left, get_blinking_LEDs_right, jpg2rgb, get_braking_LEDs
 from aido_schemas import (Duckiebot1Commands, Duckiebot1ObservationsPlusState, EpisodeStart, GetCommands, JPGImage,
                           protocol_agent_duckiebot1_fullstate, PWMCommands)
 from duckietown_world import construct_map, DuckietownMap, GetLanePoseResult
@@ -66,22 +66,31 @@ class FullAgent:
         # context.info('Which lane am I in?')
 
         possibilities = list(get_lane_poses(self.dtmap, pose))
-        glpr: GetLanePoseResult = possibilities[0]
-        lane_pose = glpr.lane_pose
-        # context.info(debug_print(lane_pose))
-        #
-        k = 0.1
-        speed = 0.1
-        turn = -k * lane_pose.relative_heading
+        if not possibilities: # outside of lane:
+            speed = 0
+            turn = 0.1
+
+            led_commands = get_braking_LEDs(data.at_time)
+
+        else:
+            glpr: GetLanePoseResult = possibilities[0]
+            lane_pose = glpr.lane_pose
+            # context.info(debug_print(lane_pose))
+            #
+            k = 0.1
+            speed = 0.1
+            turn = -k * lane_pose.relative_heading
+
+            if turn > 0:
+                led_commands = get_blinking_LEDs_left(data.at_time)
+            else:
+                led_commands = get_blinking_LEDs_right(data.at_time)
+
 
         pwm_left = speed - turn
         pwm_right = speed + turn
 
         pwm_commands = PWMCommands(motor_left=pwm_left, motor_right=pwm_right)
-        if turn > 0:
-            led_commands = get_blinking_LEDs_left(data.at_time)
-        else:
-            led_commands = get_blinking_LEDs_right(data.at_time)
 
         # commands = PWM + LED
         commands = Duckiebot1Commands(pwm_commands, led_commands)
