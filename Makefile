@@ -1,8 +1,9 @@
 AIDO_REGISTRY ?= docker.io
 PIP_INDEX_URL ?= https://pypi.org/simple
 
-repo=aidonode-random_agent-full
-# repo=$(shell basename -s .git `git config --get remote.origin.url`)
+
+repo=challenge-aido_lf-minimal-agent-full
+# repo=$(shell basename -s .git `git config --get remote.origin.url`) # XXX fails for lower case
 branch=$(shell git rev-parse --abbrev-ref HEAD)
 tag=$(AIDO_REGISTRY)/duckietown/$(repo):$(branch)
 

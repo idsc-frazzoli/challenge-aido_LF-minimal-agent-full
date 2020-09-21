@@ -5,14 +5,14 @@ from typing import cast, Optional
 
 import numpy as np
 import yaml
+from zuper_nodes_wrapper import Context, wrap_direct
 
-from aido_agents import get_blinking_LEDs_left, get_blinking_LEDs_right, jpg2rgb, get_braking_LEDs
-from aido_schemas import (Duckiebot1Commands, Duckiebot1ObservationsPlusState, EpisodeStart, GetCommands, JPGImage,
+from aido_agents import get_blinking_LEDs_left, get_blinking_LEDs_right, get_braking_LEDs, jpg2rgb
+from aido_schemas import (Duckiebot1Commands, Duckiebot1ObservationsPlusState, EpisodeStart, GetCommands,
+                          JPGImage,
                           protocol_agent_duckiebot1_fullstate, PWMCommands)
 from duckietown_world import construct_map, DuckietownMap, GetLanePoseResult
 from duckietown_world.world_duckietown import get_lane_poses
-from zuper_nodes_wrapper import Context, wrap_direct
-from zuper_typing import debug_print
 
 
 @dataclass
@@ -66,7 +66,7 @@ class FullAgent:
         # context.info('Which lane am I in?')
 
         possibilities = list(get_lane_poses(self.dtmap, pose))
-        if not possibilities: # outside of lane:
+        if not possibilities:  # outside of lane:
             speed = 0
             turn = 0.1
 
@@ -85,7 +85,6 @@ class FullAgent:
                 led_commands = get_blinking_LEDs_left(data.at_time)
             else:
                 led_commands = get_blinking_LEDs_right(data.at_time)
-
 
         pwm_left = speed - turn
         pwm_right = speed + turn
