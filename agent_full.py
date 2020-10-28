@@ -8,9 +8,9 @@ import yaml
 from zuper_nodes_wrapper import Context, wrap_direct
 
 from aido_agents import get_blinking_LEDs_left, get_blinking_LEDs_right, get_braking_LEDs, jpg2rgb
-from aido_schemas import (Duckiebot1Commands, Duckiebot1ObservationsPlusState, EpisodeStart, GetCommands,
+from aido_schemas import (DB20Commands, DB20ObservationsPlusState, EpisodeStart, GetCommands,
                           JPGImage,
-                          protocol_agent_duckiebot1_fullstate, PWMCommands)
+                          protocol_agent_DB20_fullstate, PWMCommands)
 from duckietown_world import construct_map, DuckietownMap, GetLanePoseResult
 from duckietown_world.world_duckietown import get_lane_poses
 
@@ -39,7 +39,7 @@ class FullAgent:
         # This is called at the beginning of episode.
         context.info(f'Starting episode "{data.episode_name}".')
 
-    def on_received_observations(self, context: Context, data: Duckiebot1ObservationsPlusState):
+    def on_received_observations(self, context: Context, data: DB20ObservationsPlusState):
         myname = data.your_name
         # context.info(f'myname {myname}')
         # state = data.state.duckiebots
@@ -92,7 +92,7 @@ class FullAgent:
         pwm_commands = PWMCommands(motor_left=pwm_left, motor_right=pwm_right)
 
         # commands = PWM + LED
-        commands = Duckiebot1Commands(pwm_commands, led_commands)
+        commands = DB20Commands(pwm_commands, led_commands)
         # write them out
         context.write("commands", commands)
         context.info('commands computed')
@@ -103,7 +103,7 @@ class FullAgent:
 
 def main() -> None:
     node = FullAgent()
-    protocol = protocol_agent_duckiebot1_fullstate
+    protocol = protocol_agent_DB20_fullstate
     wrap_direct(node=node, protocol=protocol)
 
 
