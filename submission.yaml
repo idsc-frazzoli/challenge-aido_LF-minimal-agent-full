@@ -2,7 +2,7 @@
 # challenge: [c1,c2]
 
 # conventions + format
-protocol: aido5_full-z2
+protocol: aido5-db20-full-z2
 # any user label - displayed in "challenges list"
 user-label: "minimal-agent-full"
 # any JSON payload
