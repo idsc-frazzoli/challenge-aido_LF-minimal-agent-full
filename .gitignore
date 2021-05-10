@@ -2,3 +2,5 @@
 ./output
 output-local-evaluation
 requirements.resolved
+.idea/
+venv/
