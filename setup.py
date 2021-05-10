@@ -18,6 +18,8 @@ def get_version(filename):
 
 
 install_requires = [
+    "duckietown-world-daffy",
+    "aido-agents-daffy"
 ]
 
 module = "gtduckie"
