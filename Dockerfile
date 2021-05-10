@@ -8,9 +8,12 @@ RUN pip3 install -U "pip>=20.2"
 COPY requirements.* ./
 RUN cat requirements.* > .requirements.txt
 RUN pip3 install --use-feature=2020-resolver -r .requirements.txt
+# fixme why this line?
 RUN pip3 uninstall dataclasses -y
 
 COPY . .
+
+RUN python setup.py install
 
 RUN PYTHONPATH=. python -c "from agent_full import *"
 
