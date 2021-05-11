@@ -1,9 +1,9 @@
 import time
 from typing import Optional, Dict
-
+import numpy as np
 from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, GetCommands, PWMCommands, DB20Commands
-from duckietown_world import get_lane_poses, GetLanePoseResult
-from geometry import angle_from_SE2
+from duckietown_world import get_lane_poses, GetLanePoseResult, relative_pose
+from geometry import translation_angle_from_SE2
 
 from gtduckie.agents.base import FullAgentBase
 from gtduckie.controllers import SpeedController, LedsController
@@ -41,13 +41,14 @@ class MyFullAgent(FullAgentBase):
         context.debug(f"speed: {speed}")
 
         if self.myglpr is not None:
-            context.debug(f"along lane: {self.myglpr.lane_pose.along_lane}")
             next_along_lane = self.myglpr.lane_pose.along_lane + self.pure_pursuit.look_ahead
             beta = self.myglpr.lane_segment.beta_from_along_lane(next_along_lane)
-            context.debug(f"beta: {beta}")
-            goal_point = self.myglpr.lane_segment.center_point(beta)
-            context.debug(f"goal_ point: {goal_point}")
-            relative_heading = angle_from_SE2(goal_point) - angle_from_SE2(self.mypose)
+            center_point = self.myglpr.lane_segment.center_point(beta)
+            goal_point = np.dot(self.myglpr.lane_segment_transform.asmatrix2d().m, center_point)
+            context.debug(f"goal_point: \n{goal_point}")
+            context.debug(f"mypose: \n{self.mypose}")
+            rel = relative_pose(self.mypose, goal_point)
+            _, relative_heading = translation_angle_from_SE2(rel)
             context.debug(f"relative heading: {relative_heading}")
             k = 0.05
             turn = -k * relative_heading
