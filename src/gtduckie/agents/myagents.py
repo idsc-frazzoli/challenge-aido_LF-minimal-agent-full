@@ -50,7 +50,7 @@ class MyFullAgent(FullAgentBase):
             rel = relative_pose(self.mypose, goal_point)
             _, relative_heading = translation_angle_from_SE2(rel)
             context.debug(f"relative heading: {relative_heading}")
-            k = 0.05
+            k = 0.1
             turn = -k * relative_heading
         else:
             turn = 0.1  # fixme totally random fallback
