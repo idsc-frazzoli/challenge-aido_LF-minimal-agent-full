@@ -21,7 +21,7 @@ class FullAgentBase(ABC):
 
     def _init_map(self, map_data: dict):
         self.dtmap = construct_map(map_data)
-        print(self.dtmap)
+        #print(self.dtmap)
 
     def on_received_seed(self, data: int):
         np.random.seed(data)

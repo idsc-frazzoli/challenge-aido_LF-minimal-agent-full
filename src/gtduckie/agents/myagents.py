@@ -1,8 +1,10 @@
 import time
 from typing import Optional, Dict
 
+import geometry
 from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, GetCommands, PWMCommands, DB20Commands
 from duckietown_world import get_lane_poses, GetLanePoseResult
+from geometry import angle_from_SE2
 
 from gtduckie.agents.base import FullAgentBase
 from gtduckie.controllers import SpeedController, LedsController
@@ -44,7 +46,7 @@ class MyFullAgent(FullAgentBase):
             beta = self.myglpr.lane_segment.beta_from_along_lane(next_along_lane)
             _, goal_point = self.myglpr.lane_segment.find_along_lane_closest_point(beta)
 
-            relative_heading = goal_point[2] - self.mypose[2]
+            relative_heading = angle_from_SE2(goal_point) - angle_from_SE2(self.mypose)
             context.info(f"relative heading: {relative_heading}")
             k = 0.1
             turn = -k * relative_heading
