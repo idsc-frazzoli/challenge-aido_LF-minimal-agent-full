@@ -1,7 +1,7 @@
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import cast, Optional
+from typing import cast, Optional, Dict
 
 import numpy as np
 import yaml
@@ -14,22 +14,20 @@ from aido_schemas import (
     EpisodeStart,
     GetCommands,
     JPGImage,
-    PWMCommands,
+    PWMCommands, DTSimRobotInfo, LEDSCommands,
 )
 from duckietown_world import construct_map, DuckietownMap, get_lane_poses, GetLanePoseResult
 
-__all__ = ["FullAgentConfig", "FullAgentBase", "FullAgent"]
+__all__ = ["FullAgentBase", "FullAgent"]
 
-
-@dataclass
-class FullAgentConfig:
-    pass
+from gtduckie.controllers import SpeedController, PurePursuit, LedsController
 
 
 class FullAgentBase(ABC):
-    config: FullAgentConfig = FullAgentConfig()
     dtmap: Optional[DuckietownMap]
-    pose: np.ndarray
+    mypose: np.ndarray
+    myname: Optional[str]
+    is_first_callback: bool = True
 
     def init(self, context: Context):
         context.info("FullAgent init()")
@@ -50,6 +48,18 @@ class FullAgentBase(ABC):
     def on_received_observations(self, context: Context, data: DB20ObservationsPlusState):
         pass
 
+    def init_observations(self, context: Context, data: DB20ObservationsPlusState):
+        if self.myname is None:
+            self.myname = data.your_name
+            context.info(f'Myname is {self.myname}')
+        if self.dtmap is None:
+            context.info("Loading map")
+            yaml_str = cast(str, data.map_data)
+            map_data = yaml.load(yaml_str, Loader=yaml.SafeLoader)
+            self._init_map(map_data)
+            context.info("Loading map done")
+        self.is_first_callback = False
+
     @abstractmethod
     def on_received_get_commands(self, context: Context, data: GetCommands):
         pass
@@ -61,28 +71,20 @@ class FullAgentBase(ABC):
 class FullAgent(FullAgentBase):
 
     def on_received_observations(self, context: Context, data: DB20ObservationsPlusState):
-        myname = data.your_name
-        # context.info(f'myname {myname}')
-        # state = data.state.duckiebots
+        if self.is_first_callback:
+            self.init_observations(context=context, data=data)
 
-        if self.dtmap is None:
-            context.info("Loading map")
-            yaml_str = cast(str, data.map_data)
-            map_data = yaml.load(yaml_str, Loader=yaml.SafeLoader)
-            self._init_map(map_data)
-            context.info("Loading map done")
-
-        mystate = data.state.duckiebots[myname]
-        self.pose = mystate.pose
+        mystate = data.state.duckiebots[self.myname]
+        self.mypose = mystate.pose
 
         # context.info(f'state {state}')
         # Get the JPG image
-        camera: JPGImage = data.camera
+        # camera: JPGImage = data.camera
         # Convert to numpy array
-        _rgb = jpg2rgb(camera.jpg_data)
+        # _rgb = jpg2rgb(camera.jpg_data)
 
     def on_received_get_commands(self, context: Context, data: GetCommands):
-        pose: np.array = self.pose
+        pose: np.array = self.mypose
 
         # context.info('Which lane am I in?')
 
@@ -114,6 +116,38 @@ class FullAgent(FullAgentBase):
         pwm_commands = PWMCommands(motor_left=pwm_left, motor_right=pwm_right)
 
         commands = DB20Commands(pwm_commands, led_commands)
+        dt = time.time() - t0
+        context.write("commands", commands)
+        context.info(f"commands computed in {dt:.3f} seconds")
+
+
+class MyFullAgent(FullAgentBase):
+    duckiebots: Dict[str, DTSimRobotInfo]
+    speed_controller: SpeedController = SpeedController()
+    pure_pursuit: PurePursuit = PurePursuit()
+    leds_controller: LedsController = LedsController()
+
+    def on_received_observations(self, context: Context, data: DB20ObservationsPlusState):
+        if self.is_first_callback:
+            self.init_observations(context=context, data=data)
+        self.duckiebots: Dict[str, DTSimRobotInfo] = data.state.duckiebots
+        self.mypose = self.duckiebots[self.myname].pose
+        self.speed_controller.update_observations(
+            current_velocity=self.duckiebots[self.myname].velocity)
+
+    def on_received_get_commands(self, context: Context, data: GetCommands):
+        t0 = time.time()
+        self.speed_controller.update_reference(0.5) # fixme maybe this can be done when we receive the observations
+        speed = self.speed_controller.get_control(at=data.at_time)
+        turn = self.pure_pursuit.compute_steering_angle(at=data.at_time)
+
+        pwm_left = speed - turn
+        pwm_right = speed + turn
+
+        pwm_commands = PWMCommands(motor_left=pwm_left, motor_right=pwm_right)
+        led_commands = self.leds_controller.get_led_lights(new_speed=speed, new_turn=turn, t=data.at_time)
+        commands = DB20Commands(pwm_commands, led_commands)
+
         dt = time.time() - t0
         context.write("commands", commands)
         context.info(f"commands computed in {dt:.3f} seconds")
