@@ -41,13 +41,15 @@ class MyFullAgent(FullAgentBase):
         context.debug(f"speed: {speed}")
 
         if self.myglpr is not None:
+            context.debug(f"along lane: {self.myglpr.lane_pose.along_lane}")
             next_along_lane = self.myglpr.lane_pose.along_lane + self.pure_pursuit.look_ahead
             beta = self.myglpr.lane_segment.beta_from_along_lane(next_along_lane)
+            context.debug(f"beta: {beta}")
             _, goal_point = self.myglpr.lane_segment.find_along_lane_closest_point(beta)
-
+            context.debug(f"goal_ point: {goal_point}")
             relative_heading = angle_from_SE2(goal_point) - angle_from_SE2(self.mypose)
             context.debug(f"relative heading: {relative_heading}")
-            k = 0.0
+            k = 0.05
             turn = -k * relative_heading
         else:
             turn = 0.1  # fixme totally random fallback
