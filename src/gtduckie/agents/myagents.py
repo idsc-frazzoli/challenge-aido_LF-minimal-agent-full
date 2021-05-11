@@ -3,7 +3,7 @@ from typing import Optional, Dict
 
 from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, GetCommands, PWMCommands, DB20Commands
 from duckietown_world import get_lane_poses, GetLanePoseResult
-from geometry import angle_from_SE2, xytheta_from_SE2
+from geometry import angle_from_SE2
 
 from gtduckie.agents.base import FullAgentBase
 from gtduckie.controllers import SpeedController, LedsController
@@ -47,7 +47,7 @@ class MyFullAgent(FullAgentBase):
 
             relative_heading = angle_from_SE2(goal_point) - angle_from_SE2(self.mypose)
             context.debug(f"relative heading: {relative_heading}")
-            k = 0.1
+            k = 0.0
             turn = -k * relative_heading
         else:
             turn = 0.1  # fixme totally random fallback
