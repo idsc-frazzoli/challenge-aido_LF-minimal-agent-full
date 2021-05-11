@@ -22,7 +22,6 @@ class SpeedController:
         self.last_integral_error: float = 0
 
     def update_observations(self, current_velocity: np.ndarray):
-        print(f"current velocity: {current_velocity}")
         self.current_speed = current_velocity[0]
 
     def update_reference(self, desired_speed: float):
