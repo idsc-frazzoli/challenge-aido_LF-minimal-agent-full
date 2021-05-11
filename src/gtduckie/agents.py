@@ -1,6 +1,5 @@
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import cast, Optional, Dict
 
 import numpy as np
@@ -14,13 +13,13 @@ from aido_schemas import (
     EpisodeStart,
     GetCommands,
     JPGImage,
-    PWMCommands, DTSimRobotInfo, LEDSCommands,
+    PWMCommands,
+    DTSimRobotInfo
 )
 from duckietown_world import construct_map, DuckietownMap, get_lane_poses, GetLanePoseResult
-
-__all__ = ["FullAgentBase", "FullAgent"]
-
 from gtduckie.controllers import SpeedController, PurePursuit, LedsController
+
+__all__ = ["FullAgentBase", "FullAgent", "MyFullAgent"]
 
 
 class FullAgentBase(ABC):
