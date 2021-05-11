@@ -126,6 +126,7 @@ class MyFullAgent(FullAgentBase):
     speed_controller: SpeedController = SpeedController()
     pure_pursuit: PurePursuit = PurePursuit()
     leds_controller: LedsController = LedsController()
+    myglpr: Optional[GetLanePoseResult] = None
 
     def on_received_observations(self, context: Context, data: DB20ObservationsPlusState):
         if self.is_first_callback:
@@ -134,12 +135,33 @@ class MyFullAgent(FullAgentBase):
         self.mypose = self.duckiebots[self.myname].pose
         self.speed_controller.update_observations(
             current_velocity=self.duckiebots[self.myname].velocity)
+        # update lane position
+        possibilities = list(get_lane_poses(self.dtmap, self.mypose))
+        if not possibilities:
+            self.myglpr = None  # outside of lane:
+        else:
+            self.myglpr = possibilities[0]
 
     def on_received_get_commands(self, context: Context, data: GetCommands):
         t0 = time.time()
-        self.speed_controller.update_reference(0.5) # fixme maybe this can be done when we receive the observations
+        self.speed_controller.update_reference(0.2)  # fixme maybe this can be done when we receive the observations
         speed = self.speed_controller.get_control(at=data.at_time)
-        turn = self.pure_pursuit.compute_steering_angle(at=data.at_time)
+        context.info(f"turn: {speed}")
+
+        if self.myglpr is not None:
+            next_along_lane = self.myglpr.lane_pose.along_lane + self.pure_pursuit.param.look_ahead
+            beta = self.myglpr.lane_segment.beta_from_along_lane(next_along_lane)
+            _, goal_point = self.myglpr.lane_segment.find_along_lane_closest_point(beta)
+
+            relative_heading = goal_point[2] - self.mypose[2]
+            context.info(f"relative heading: {relative_heading}")
+            k = 0.1
+            turn = -k * relative_heading
+        else:
+            turn = 0.1  # fixme totally random fallback
+        context.info(f"turn: {turn}")
+
+        # turn = self.pure_pursuit.compute_steering_angle(at=data.at_time)
 
         pwm_left = speed - turn
         pwm_right = speed + turn

@@ -8,7 +8,7 @@ __all__ = ["SpeedController"]
 @dataclass
 class SpeedControllerParam:
     kP: float = 0.1
-    kI: float = 0.1
+    kI: float = 0.0
     antiwindup: Tuple[float, float] = (-0.5, 0.5)
 
 
@@ -25,6 +25,7 @@ class SpeedController:
         self.current_speed = current_velocity[0]
 
     def update_reference(self, desired_speed: float):
+        # todo checks, clipping
         self.desired_speed = desired_speed
 
     def get_control(self, at: float) -> float:
