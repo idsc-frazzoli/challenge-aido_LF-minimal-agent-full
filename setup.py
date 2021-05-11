@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def get_version(filename):
@@ -31,7 +31,7 @@ version = get_version(filename=f"src/{module}/__init__.py")
 setup(
     name=package,
     package_dir={"": src},
-    packages=[module],
+    packages=find_packages('src'),
     version=version,
     zip_safe=False,
     install_requires=install_requires,

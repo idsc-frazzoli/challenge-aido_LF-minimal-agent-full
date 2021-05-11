@@ -17,7 +17,7 @@ from aido_schemas import (
     DTSimRobotInfo
 )
 from duckietown_world import construct_map, DuckietownMap, get_lane_poses, GetLanePoseResult
-from .controllers import SpeedController, PurePursuit, LedsController
+from gtduckie.controllers import SpeedController, PurePursuit, LedsController
 
 __all__ = ["FullAgentBase", "FullAgent", "MyFullAgent"]
 
