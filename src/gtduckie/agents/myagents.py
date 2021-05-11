@@ -3,7 +3,7 @@ from typing import Optional, Dict
 
 from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, GetCommands, PWMCommands, DB20Commands
 from duckietown_world import get_lane_poses, GetLanePoseResult
-from geometry import angle_from_SE2
+from geometry import angle_from_SE2, xytheta_from_SE2
 
 from gtduckie.agents.base import FullAgentBase
 from gtduckie.controllers import SpeedController, LedsController
@@ -25,7 +25,6 @@ class MyFullAgent(FullAgentBase):
             self.init_observations(context=context, data=data)
         self.duckiebots: Dict[str, DTSimRobotInfo] = data.state.duckiebots
         self.mypose = self.duckiebots[self.myname].pose
-        context.debug(f"current velocity: {self.duckiebots[self.myname].velocity}")
         self.speed_controller.update_observations(
             current_velocity=self.duckiebots[self.myname].velocity)
         # update lane position

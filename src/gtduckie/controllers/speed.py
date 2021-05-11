@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 __all__ = ["SpeedController"]
 
+from geometry import xytheta_from_SE2
+
 
 @dataclass
 class SpeedControllerParam:
@@ -22,7 +24,8 @@ class SpeedController:
         self.last_integral_error: float = 0
 
     def update_observations(self, current_velocity: np.ndarray):
-        self.current_speed = current_velocity[0]
+        # todo checks
+        self.current_speed = xytheta_from_SE2(current_velocity)[0]
 
     def update_reference(self, desired_speed: float):
         # todo checks, clipping
