@@ -8,9 +8,7 @@ from gtduckie.agents.base import FullAgentBase
 from gtduckie.controllers import SpeedController, LedsController
 from gtduckie.controllers.pure_pursuit import PurePursuitParam
 
-
 __all__ = ["MyFullAgent"]
-
 
 
 class MyFullAgent(FullAgentBase):
