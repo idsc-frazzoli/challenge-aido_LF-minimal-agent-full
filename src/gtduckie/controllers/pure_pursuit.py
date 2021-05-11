@@ -1,5 +1,4 @@
-from collections import Sequence
-from typing import Optional
+from typing import Optional, Sequence
 import numpy as np
 from dataclasses import dataclass
 from geometry import SE2value
@@ -22,7 +21,7 @@ class PurePursuit:
         :param
         """
         self.path: Optional[Sequence[SE2value]] = None
-        self.pose: SE2value
+        self.pose: Optional[SE2value] = None
         self.look_ahead_point: SE2value
         self.start_index: int = 0
         self.speed: float = 0
