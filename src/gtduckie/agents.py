@@ -21,6 +21,8 @@ from gtduckie.controllers import SpeedController, PurePursuit, LedsController
 
 __all__ = ["FullAgentBase", "FullAgent", "MyFullAgent"]
 
+from gtduckie.controllers.pure_pursuit import PurePursuitParam
+
 
 class FullAgentBase(ABC):
     dtmap: Optional[DuckietownMap]
@@ -123,7 +125,8 @@ class FullAgent(FullAgentBase):
 class MyFullAgent(FullAgentBase):
     duckiebots: Dict[str, DTSimRobotInfo]
     speed_controller: SpeedController = SpeedController()
-    pure_pursuit: PurePursuit = PurePursuit()
+    # pure_pursuit: PurePursuit = PurePursuit()
+    pure_pursuit: PurePursuitParam = PurePursuitParam()
     leds_controller: LedsController = LedsController()
     myglpr: Optional[GetLanePoseResult] = None
 
@@ -148,7 +151,7 @@ class MyFullAgent(FullAgentBase):
         context.info(f"turn: {speed}")
 
         if self.myglpr is not None:
-            next_along_lane = self.myglpr.lane_pose.along_lane + self.pure_pursuit.param.look_ahead
+            next_along_lane = self.myglpr.lane_pose.along_lane + self.pure_pursuit.look_ahead
             beta = self.myglpr.lane_segment.beta_from_along_lane(next_along_lane)
             _, goal_point = self.myglpr.lane_segment.find_along_lane_closest_point(beta)
 
