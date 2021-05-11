@@ -45,7 +45,7 @@ class MyFullAgent(FullAgentBase):
             next_along_lane = self.myglpr.lane_pose.along_lane + self.pure_pursuit.look_ahead
             beta = self.myglpr.lane_segment.beta_from_along_lane(next_along_lane)
             context.debug(f"beta: {beta}")
-            _, goal_point = self.myglpr.lane_segment.find_along_lane_closest_point(beta)
+            _, goal_point = self.myglpr.lane_segment.center_point(beta)
             context.debug(f"goal_ point: {goal_point}")
             relative_heading = angle_from_SE2(goal_point) - angle_from_SE2(self.mypose)
             context.debug(f"relative heading: {relative_heading}")
