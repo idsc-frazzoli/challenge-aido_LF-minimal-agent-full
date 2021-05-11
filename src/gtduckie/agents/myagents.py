@@ -39,7 +39,7 @@ class MyFullAgent(FullAgentBase):
         t0 = time.time()
         self.speed_controller.update_reference(0.2)  # fixme maybe this can be done when we receive the observations
         speed = self.speed_controller.get_control(at=data.at_time)
-        context.info(f"turn: {speed}")
+        context.info(f"speed: {speed}")
 
         if self.myglpr is not None:
             next_along_lane = self.myglpr.lane_pose.along_lane + self.pure_pursuit.look_ahead
