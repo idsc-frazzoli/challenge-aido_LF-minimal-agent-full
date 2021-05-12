@@ -1,124 +1,91 @@
-from typing import Optional, Sequence
+from math import sin
+from typing import Optional, Tuple
+
 import numpy as np
 from dataclasses import dataclass
-from geometry import SE2value
+
+import scipy.optimize
+from duckietown_world import LaneSegment
+from geometry import SE2value, translation_angle_from_SE2
 
 __all__ = ["PurePursuit"]
+
+from gtduckie.utils import euclidean_between_SE2value
 
 
 @dataclass
 class PurePursuitParam:
-    look_ahead: float = 0.1
+    look_ahead: float = 0.2
     min_distance: float = 0.1
     steering_factor: float = 0.1
 
 
 class PurePursuit:
+    "https://ethz.ch/content/dam/ethz/special-interest/mavt/dynamic-systems-n-control/idsc-dam/Lectures/amod/AMOD_2020/20201019-05%20-%20ETHZ%20-%20Control%20in%20Duckietown%20(PID).pdf"
 
     def __init__(self):
         """
         initialise pure_pursuit control loop
         :param
         """
-        self.path: Optional[Sequence[SE2value]] = None
+        self.path: Optional[LaneSegment] = None
         self.pose: Optional[SE2value] = None
-        self.look_ahead_point: SE2value
-        self.start_index: int = 0
         self.speed: float = 0
-        self.near_point_index: int = 0
-        self.curvature: float = 0
-        self.length: float = 1.19
-        self.steering_angle: float = 0
         self.param: PurePursuitParam = PurePursuitParam()
 
-    def update_path(self, path: Sequence[SE2value]):
+    def update_path(self, path: LaneSegment):
+        assert isinstance(path, LaneSegment)
         self.path = path
 
-    def update_state(self, pose: SE2value, velocity: SE2value):
-        """
-        update current location
-        :param pose: SE2value
-        :return:
-        """
+    def update_pose(self, pose: SE2value):
+        assert isinstance(pose, SE2value)
         self.pose = pose
-        self.speed = velocity.x
 
-        if self.look_ahead_point is None and self.is_start_controller is True:
-            self.look_ahead_point = SE2value()
-            angle = self.pose.theta
-            rotation = np.matmul(
-                np.array([[np.round(np.cos(angle), 1), -np.round(np.sin(angle), 1)],
-                          [np.round(np.sin(angle), 1), np.round(np.cos(angle), 1)]]),
-                np.array([[self.param.look_ahead], [0.0]]))
-            self.look_ahead_point.x = float(rotation[0]) + self.pose.x
-            self.look_ahead_point.y = float(rotation[1]) + self.pose.y
+    def update_speed(self, speed: float):
+        self.speed = speed
 
-    def find_nearest_point_index_on_path(self) -> int:
-        """
-        find nearest point on path to gokart
-        :return:
-        """
-        near_point_dist = float('inf')
-        near_point_index = None
-        for i in range(len(self.path)):
-            dist = np.sqrt((self.pose.x - self.path[i].x) ** 2 + (self.pose.y - self.path[i].y) ** 2)
-            if dist < near_point_dist:
-                near_point_dist = dist
-                near_point_index = i
-        # error if none
-        return near_point_index
-
-    def find_goal_point(self, path: Sequence[SE2value]) -> SE2value:
+    def find_goal_point(self) -> Tuple[float, SE2value]:
         """
         find goal point on path
-        :return: SE2value
+        :return: along_lane, SE2value
         """
-        dist_array = []
-        pose = []
 
-        dist = np.linalg.norm(self.look_ahead_point[:2] - self.pose[:2])
-        min_dist = self.param.min_distance
+        def goal_point_error(along_lane: float) -> float:
+            """
+            :param along_lane:
+            :return: euclidean distance between self.pose and a point along_lane
+            """
+            beta = self.path.beta_from_along_lane(along_lane)
+            cp = self.path.center_point(beta)
+            dist = euclidean_between_SE2value(self.pose, cp)
+            return np.linalg.norm(dist - self.param.look_ahead)
 
-        if dist < min_dist:
-            for i in range(self.near_point_index, (self.near_point_index + 20) % len(path)):
-                dist = np.sqrt((self.pose.x - path[i].x) ** 2 + (self.pose.y - path[i].y) ** 2)
+        min_along_lane, _ = self.path.find_along_lane_closest_point(self.pose)
+        bounds = [min_along_lane, self.param.look_ahead + 10]  # fixme
+        res = scipy.optimize.minimize_scalar(fun=goal_point_error, bounds=bounds)
+        goal_point = self.path.center_point(self.path.beta_from_along_lane(res.x))
+        return res.x, goal_point
 
-                dist_array.append(abs(dist - self.param.look_ahead))
-                pose.append(path[i])
-
-            if len(dist_array) != 0:
-                print('dist', min(dist_array))
-                look_ahead_point_index = dist_array.index(min(dist_array))
-                self.look_ahead_point.x = pose[look_ahead_point_index].x
-                self.look_ahead_point.y = pose[look_ahead_point_index].y
-
-        return self.look_ahead_point
-
-    def get_curvature(self) -> float:
+    def find_goal_point_approx(self) -> SE2value:
         """
-        find curvature
-        :return: float
+        Approximate goal point on the path, from your projection on the lane advance by lookahead
+        :return:
         """
-        self.goal_point_in_vehicle_frame.x = self.look_ahead_point.x - self.pose.x
-        self.goal_point_in_vehicle_frame.y = self.look_ahead_point.y - self.pose.y
-        self.goal_point_in_vehicle_frame.theta = self.pose.theta
+        along_lane, _ = self.path.find_along_lane_closest_point(self.pose)
+        along_lane_goal_point = along_lane + self.param.look_ahead
+        beta = self.path.beta_from_along_lane(along_lane_goal_point)
+        return self.path.center_point(beta)
 
-        angle = -self.pose.theta
-        rotation = np.matmul(
-            np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]),
-            np.array([[self.goal_point_in_vehicle_frame.x], [self.goal_point_in_vehicle_frame.y]]))
-        self.goal_point_in_vehicle_frame.y = float(rotation[1])
-        perpendicular_dist = self.goal_point_in_vehicle_frame.y
-
-        self.curvature = (2 * perpendicular_dist / self.look_ahead_distance ** 2)
-
-        return self.curvature
-
-    def compute_steering_angle(self) -> float:
+    def get_turn_factor(self) -> float:
         """
         gives steering angle
         :return: float
         """
-        # put here the logic
-        self.steering_angle = np.arctan(self.length * self.curvature)
-        return self.param.steering_factor * self.steering_angle
+        if any([_ is None for _ in [self.pose, self.path]]):
+            raise RuntimeError("Attempting to use pure pursuit before having ady observations/path")
+        p, theta = translation_angle_from_SE2(self.pose)
+        goal_point = self.find_goal_point_approx()
+        p_goal, theta_goal = translation_angle_from_SE2(goal_point)
+        alpha = theta - np.arctan2(p_goal[1] - p[1], p_goal[0] - p[0])
+        radius = self.param.look_ahead / 2 * sin(alpha)
+        return self.speed / radius

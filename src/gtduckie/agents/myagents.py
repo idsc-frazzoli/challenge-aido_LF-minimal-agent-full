@@ -7,7 +7,7 @@ from geometry import translation_angle_from_SE2
 
 from gtduckie.agents.base import FullAgentBase
 from gtduckie.controllers import SpeedController, LedsController
-from gtduckie.controllers.pure_pursuit import PurePursuitParam
+from gtduckie.controllers.pure_pursuit import PurePursuit
 
 __all__ = ["MyFullAgent"]
 
@@ -15,8 +15,7 @@ __all__ = ["MyFullAgent"]
 class MyFullAgent(FullAgentBase):
     duckiebots: Dict[str, DTSimRobotInfo]
     speed_controller: SpeedController = SpeedController()
-    # pure_pursuit: PurePursuit = PurePursuit()
-    pure_pursuit: PurePursuitParam = PurePursuitParam()
+    pure_pursuit: PurePursuit = PurePursuit()
     leds_controller: LedsController = LedsController()
     myglpr: Optional[GetLanePoseResult] = None
 
@@ -25,33 +24,32 @@ class MyFullAgent(FullAgentBase):
             self.init_observations(context=context, data=data)
         self.duckiebots: Dict[str, DTSimRobotInfo] = data.state.duckiebots
         self.mypose = self.duckiebots[self.myname].pose
+
         self.speed_controller.update_observations(
             current_velocity=self.duckiebots[self.myname].velocity)
+        self.pure_pursuit.update_pose(self.mypose)
         # update lane position
         possibilities = list(get_lane_poses(self.dtmap, self.mypose))
         if not possibilities:
             self.myglpr = None  # outside of lane:
         else:
             self.myglpr = possibilities[0]
+            self.pure_pursuit.update_path(self.myglpr.lane_segment)
 
     def on_received_get_commands(self, context: Context, data: GetCommands):
         t0 = time.time()
-        self.speed_controller.update_reference(0.2)  # fixme maybe this can be done when we receive the observations
+        self.speed_controller.update_reference(0.2)
         speed = self.speed_controller.get_control(at=data.at_time)
         context.debug(f"speed: {speed}")
-
+        self.pure_pursuit.update_speed(speed)
         if self.myglpr is not None:
-            next_along_lane = self.myglpr.lane_pose.along_lane + self.pure_pursuit.look_ahead
-            beta = self.myglpr.lane_segment.beta_from_along_lane(next_along_lane)
-            center_point = self.myglpr.lane_segment.center_point(beta)
-            goal_point = np.dot(self.myglpr.lane_segment_transform.asmatrix2d().m, center_point)
-            context.debug(f"goal_point: \n{goal_point}")
+            # start debug
             context.debug(f"mypose: \n{self.mypose}")
-            rel = relative_pose(self.mypose, goal_point)
-            _, relative_heading = translation_angle_from_SE2(rel)
-            context.debug(f"relative heading: {relative_heading}")
-            k = 0.1
-            turn = -k * relative_heading
+            goal_point = self.pure_pursuit.find_goal_point()
+            context.debug(f"goal_point: \n{goal_point}")
+            # end debug
+            k = 0.1 # fixme need to check signs
+            turn = self.pure_pursuit.get_turn_factor()
         else:
             turn = 0.1  # fixme totally random fallback
         context.debug(f"turn: {turn}")
