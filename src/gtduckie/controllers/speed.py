@@ -37,6 +37,7 @@ class SpeedController:
 
         p_error = self.desired_speed - self.current_speed
         self.last_integral_error += self.params.kI * p_error * dt
-        self.last_integral_error = np.clip(self.last_integral_error, self.params.antiwindup[0],
+        self.last_integral_error = np.clip(self.last_integral_error,
+                                           self.params.antiwindup[0],
                                            self.params.antiwindup[1])
         return self.params.kP * p_error + self.last_integral_error

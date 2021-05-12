@@ -2,8 +2,7 @@ import time
 from typing import Optional, Dict
 import numpy as np
 from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, GetCommands, PWMCommands, DB20Commands
-from duckietown_world import get_lane_poses, GetLanePoseResult, relative_pose
-from geometry import translation_angle_from_SE2
+from duckietown_world import get_lane_poses, GetLanePoseResult
 
 from gtduckie.agents.base import FullAgentBase
 from gtduckie.controllers import SpeedController, LedsController
@@ -45,19 +44,19 @@ class MyFullAgent(FullAgentBase):
         if self.myglpr is not None:
             # start debug
             context.debug(f"mypose: \n{self.mypose}")
-            goal_point = self.pure_pursuit.find_goal_point()
-            context.debug(f"goal_point: \n{goal_point}")
+            _, goal_point = self.pure_pursuit.find_goal_point()
+            context.debug(f"goal_point: \n{_},{goal_point}")
+            _, goal_point_approx = self.pure_pursuit.find_goal_point_approx()
+            context.debug(f"goal_point_approx: \n{_},{goal_point_approx}")
             # end debug
-            k = 0.1 # fixme need to check signs
+            k = 0.1  # fixme need to check signs and teh missing factor for the transformation rad/s -> pwm
             turn = self.pure_pursuit.get_turn_factor()
         else:
-            turn = 0.1  # fixme totally random fallback
+            turn = 0.05  # fixme totally random fallback
         context.debug(f"turn: {turn}")
 
-        # turn = self.pure_pursuit.compute_steering_angle(at=data.at_time)
-
-        pwm_left = speed - turn
-        pwm_right = speed + turn
+        pwm_left = float(np.clip(speed - turn, self.pwm_limits[0], self.pwm_limits[1]))
+        pwm_right = float(np.clip(speed + turn, self.pwm_limits[0], self.pwm_limits[1]))
 
         pwm_commands = PWMCommands(motor_left=pwm_left, motor_right=pwm_right)
         led_commands = self.leds_controller.get_led_lights(new_speed=speed, new_turn=turn, t=data.at_time)

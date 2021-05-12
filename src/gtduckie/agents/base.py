@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from aido_schemas import Context, EpisodeStart, DB20ObservationsPlusState, GetCommands
-from typing import Optional, cast
+from typing import Optional, cast, Tuple
 
 from duckietown_world import DuckietownMap, construct_map
 import numpy as np
@@ -12,6 +12,7 @@ __all__ = ["FullAgentBase"]
 class FullAgentBase(ABC):
     myname: str
     mypose: np.ndarray
+    pwm_limits: Tuple[float, float] = (-1, 1)
     dtmap: Optional[DuckietownMap] = None
     is_first_callback: bool = True
 
@@ -21,7 +22,7 @@ class FullAgentBase(ABC):
 
     def _init_map(self, map_data: dict):
         self.dtmap = construct_map(map_data)
-        #print(self.dtmap)
+        # print(self.dtmap)
 
     def on_received_seed(self, data: int):
         np.random.seed(data)
