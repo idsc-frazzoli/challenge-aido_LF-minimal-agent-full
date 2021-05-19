@@ -28,12 +28,11 @@ class MyFullAgent(FullAgentBase):
             current_velocity=self.duckiebots[self.myname].velocity)
         self.pure_pursuit.update_pose(self.mypose)
         # update lane position
-        possibilities = list(get_lane_poses(self.dtmap, self.mypose))
-        if not possibilities:
-            self.myglpr = None  # outside of lane:
-        else:
-            self.myglpr = possibilities[0]
+        self.update_closest_lane_pose()
+        if self.myglpr is not None:
+            # todo logic to extract the lane to follow
             self.pure_pursuit.update_path(self.myglpr.lane_segment)
+            self.pure_pursuit.update_pose(self.myglpr.lane_segment_relative_pose)
 
     def on_received_get_commands(self, context: Context, data: GetCommands):
         t0 = time.time()
@@ -43,11 +42,11 @@ class MyFullAgent(FullAgentBase):
         self.pure_pursuit.update_speed(speed)
         if self.myglpr is not None:
             # start debug
-            context.debug(f"mypose: \n{self.mypose}")
-            _, goal_point = self.pure_pursuit.find_goal_point()
-            context.debug(f"goal_point: \n{_},{goal_point}")
-            _, goal_point_approx = self.pure_pursuit.find_goal_point_approx()
-            context.debug(f"goal_point_approx: \n{_},{goal_point_approx}")
+            # context.debug(f"mypose: \n{self.mypose}")
+            # _, goal_point = self.pure_pursuit.find_goal_point()
+            # context.debug(f"goal_point: \n{_},{goal_point}")
+            # _, goal_point_approx = self.pure_pursuit.find_goal_point_approx()
+            # context.debug(f"goal_point_approx: \n{_},{goal_point_approx}")
             # end debug
             k = 0.1  # fixme need to check signs and teh missing factor for the transformation rad/s -> pwm
             turn = self.pure_pursuit.get_turn_factor()
@@ -65,3 +64,15 @@ class MyFullAgent(FullAgentBase):
         dt = time.time() - t0
         context.write("commands", commands)
         context.info(f"commands computed in {dt:.3f} seconds")
+
+    def update_closest_lane_pose(self):
+        possibilities = list(get_lane_poses(self.dtmap, self.mypose))
+        if not possibilities:
+            self.myglpr = None  # outside of lane:
+        else:
+            s = sorted(possibilities, key=lambda _: np.abs(_.lane_pose.relative_heading))
+            res = {}
+            for i, _ in enumerate(s):
+                res[i] = _
+            self.myglpr = res[0]
+        return

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from aido_schemas import Context, EpisodeStart, DB20ObservationsPlusState, GetCommands
 from typing import Optional, cast, Tuple
 
-from duckietown_world import DuckietownMap, construct_map
+from duckietown_world import DuckietownMap, construct_map, GetLanePoseResult, get_lane_poses
 import numpy as np
 import yaml
 
@@ -50,5 +50,7 @@ class FullAgentBase(ABC):
     def on_received_get_commands(self, context: Context, data: GetCommands):
         pass
 
-    def finish(self, context: Context):
+    @staticmethod
+    def finish(context: Context):
         context.info("finish()")
+
