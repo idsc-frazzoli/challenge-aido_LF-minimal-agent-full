@@ -1,8 +1,9 @@
 import time
-from typing import Optional, Dict
+from typing import Optional, Dict, cast
 import numpy as np
 from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, GetCommands, PWMCommands, DB20Commands
-from duckietown_world import get_lane_poses, GetLanePoseResult
+from duckietown_world import get_lane_poses, GetLanePoseResult, relative_pose
+from geometry import SE2value
 
 from gtduckie.agents.base import FullAgentBase
 from gtduckie.controllers import SpeedController, LedsController
@@ -26,13 +27,15 @@ class MyFullAgent(FullAgentBase):
 
         self.speed_controller.update_observations(
             current_velocity=self.duckiebots[self.myname].velocity)
-        self.pure_pursuit.update_pose(self.mypose)
+
         # update lane position
-        self.update_closest_lane_pose()
+        self.update_get_lane_pose_result()
         if self.myglpr is not None:
-            # todo logic to extract the lane to follow
             self.pure_pursuit.update_path(self.myglpr.lane_segment)
-            self.pure_pursuit.update_pose(self.myglpr.lane_segment_relative_pose)
+            rel = relative_pose(self.myglpr.lane_segment_transform.asmatrix2d().m, self.mypose)
+            self.pure_pursuit.update_pose(
+                rel,
+                self.myglpr.lane_pose.along_lane)
 
     def on_received_get_commands(self, context: Context, data: GetCommands):
         t0 = time.time()
@@ -65,7 +68,7 @@ class MyFullAgent(FullAgentBase):
         context.write("commands", commands)
         context.info(f"commands computed in {dt:.3f} seconds")
 
-    def update_closest_lane_pose(self):
+    def update_get_lane_pose_result(self):
         possibilities = list(get_lane_poses(self.dtmap, self.mypose))
         if not possibilities:
             self.myglpr = None  # outside of lane:

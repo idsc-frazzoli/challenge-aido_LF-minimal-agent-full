@@ -15,13 +15,16 @@ from gtduckie.utils import euclidean_between_SE2value
 
 @dataclass
 class PurePursuitParam:
-    look_ahead: float = 0.3
-    min_distance: float = 0.1
-    max_extra_distance: float = 0.5
+    look_ahead: float = 0.2
+    min_distance: float = 0.05
+    max_extra_distance: float = 0.4
 
 
 class PurePursuit:
-    "https://ethz.ch/content/dam/ethz/special-interest/mavt/dynamic-systems-n-control/idsc-dam/Lectures/amod/AMOD_2020/20201019-05%20-%20ETHZ%20-%20Control%20in%20Duckietown%20(PID).pdf"
+    """
+    https://ethz.ch/content/dam/ethz/special-interest/mavt/dynamic-systems-n-control/idsc-dam/Lectures/amod
+    /AMOD_2020/20201019-05%20-%20ETHZ%20-%20Control%20in%20Duckietown%20(PID).pdf
+    """
 
     def __init__(self):
         """
@@ -29,7 +32,8 @@ class PurePursuit:
         :param
         """
         self.path: Optional[LaneSegment] = None
-        self.pose: Optional[SE2value] = None
+        self.rel_pose: Optional[SE2value] = None
+        self.along_path: Optional[float] = None
         self.speed: float = 0
         self.param: PurePursuitParam = PurePursuitParam()
 
@@ -37,9 +41,11 @@ class PurePursuit:
         assert isinstance(path, LaneSegment)
         self.path = path
 
-    def update_pose(self, pose: SE2value):
-        assert isinstance(pose, SE2value)
-        self.pose = pose
+    def update_pose(self, rel_pose: SE2value, along_path: float):
+        assert isinstance(rel_pose, SE2value)
+        assert isinstance(along_path, float)
+        self.rel_pose = rel_pose
+        self.along_path = along_path
 
     def update_speed(self, speed: float):
         self.speed = speed
@@ -49,23 +55,24 @@ class PurePursuit:
         find goal point on path
         :return: along_lane, SE2value
         """
+
         # todo test this function
 
-        def goal_point_error(along_lane: float) -> float:
+        def goal_point_error(along_path: float) -> float:
             """
-            :param along_lane:
+            :param along_path:
             :return: euclidean distance between self.pose and a point along_lane
             """
-            beta = self.path.beta_from_along_lane(along_lane)
+            beta = self.path.beta_from_along_lane(along_path)
             cp = self.path.center_point(beta)
-            dist = euclidean_between_SE2value(self.pose, cp)
+            dist = euclidean_between_SE2value(self.rel_pose, cp)
             return np.linalg.norm(dist - self.param.look_ahead)
 
-        min_along_lane = self.path.lane_pose_from_SE2_generic(self.pose).along_lane + self.param.min_distance
+        min_along_path = self.along_path + self.param.min_distance
 
-        bounds = [min_along_lane,
-                  min_along_lane + self.param.look_ahead + self.param.max_extra_distance]
-        res = scipy.optimize.minimize_scalar(fun=goal_point_error, bounds=bounds, tol=0.001)
+        bounds = [min_along_path,
+                  min_along_path + self.param.look_ahead + self.param.max_extra_distance]
+        res = scipy.optimize.minimize_scalar(fun=goal_point_error, bounds=bounds, method='Bounded')
         goal_point = self.path.center_point(self.path.beta_from_along_lane(res.x))
         return res.x, goal_point
 
@@ -75,21 +82,20 @@ class PurePursuit:
         :return:
         """
         # todo test this function
-        along_lane = self.path.lane_pose_from_SE2_generic(self.pose).along_lane
-        along_lane_goal_point = along_lane + self.param.look_ahead
-        beta = self.path.beta_from_along_lane(along_lane_goal_point)
-        return along_lane_goal_point, self.path.center_point(beta)
+        along_path_goal_point = self.along_path + self.param.look_ahead
+        beta = self.path.beta_from_along_lane(along_path_goal_point)
+        return along_path_goal_point, self.path.center_point(beta)
 
     def get_turn_factor(self) -> float:
         """
         gives "rotational velocity"
         :return: float
         """
-        if any([_ is None for _ in [self.pose, self.path]]):
-            raise RuntimeError("Attempting to use pure pursuit before having ady observations/path")
-        p, theta = translation_angle_from_SE2(self.pose)
+        if any([_ is None for _ in [self.rel_pose, self.path]]):
+            raise RuntimeError("Attempting to use pure pursuit before having any observations/path")
+        p, theta = translation_angle_from_SE2(self.rel_pose)
         _, goal_point = self.find_goal_point()
         p_goal, theta_goal = translation_angle_from_SE2(goal_point)
         alpha = theta - np.arctan2(p_goal[1] - p[1], p_goal[0] - p[0])
-        radius = self.param.look_ahead / 2 * sin(alpha)
+        radius = self.param.look_ahead / (2 * sin(alpha))
         return self.speed / radius

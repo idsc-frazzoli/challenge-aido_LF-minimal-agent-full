@@ -4,6 +4,7 @@ output-local-evaluation
 requirements.resolved
 .idea/
 venv/
+out/
 
 
 .ipynb_checkpoints/
