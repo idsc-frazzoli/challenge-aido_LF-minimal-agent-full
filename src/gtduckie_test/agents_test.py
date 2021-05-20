@@ -69,7 +69,7 @@ def test_agent():
         ax.plot(g_point.p[0], g_point.p[1], "x")
 
         print("Goal point:", along_lane, SE2Transform.from_SE2(goal_point))
-        turn = agent.pure_pursuit.get_turn_factor()
+        turn = agent.pure_pursuit.get_pwmturn_factor()
         print("Turn [rel pose]: ", turn)
         side = "left" if turn > 0 else "right"
         ax.text(0, 0, f"turn: {turn:.3f}({side})")

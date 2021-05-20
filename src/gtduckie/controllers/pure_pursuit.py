@@ -8,9 +8,9 @@ import scipy.optimize
 from duckietown_world import LaneSegment
 from geometry import SE2value, translation_angle_from_SE2
 
-__all__ = ["PurePursuit"]
-
 from gtduckie.utils import euclidean_between_SE2value
+
+__all__ = ["PurePursuit"]
 
 
 @dataclass
@@ -18,7 +18,7 @@ class PurePursuitParam:
     look_ahead: float = 0.25
     min_distance: float = 0.05
     max_extra_distance: float = 0.4
-    k_turn2pwm: float = 0.05
+    k_turn2pwm: float = 0.3
 
 
 class PurePursuit:
@@ -27,7 +27,7 @@ class PurePursuit:
     /AMOD_2020/20201019-05%20-%20ETHZ%20-%20Control%20in%20Duckietown%20(PID).pdf
     """
 
-    def __init__(self):
+    def __init__(self, params: PurePursuitParam = PurePursuitParam()):
         """
         initialise pure_pursuit control loop
         :param
@@ -36,7 +36,7 @@ class PurePursuit:
         self.rel_pose: Optional[SE2value] = None
         self.along_path: Optional[float] = None
         self.speed: float = 0
-        self.param: PurePursuitParam = PurePursuitParam()
+        self.param: PurePursuitParam = params
         print("Pure pursuit params: \n", self.param)
 
     def update_path(self, path: LaneSegment):
@@ -54,16 +54,14 @@ class PurePursuit:
 
     def find_goal_point(self) -> Tuple[float, SE2value]:
         """
-        find goal point on path
-        :return: along_lane, SE2value
+        Find goal point along the path
+        :return: along_path, SE2value
         """
-
-        # todo test this function
 
         def goal_point_error(along_path: float) -> float:
             """
             :param along_path:
-            :return: euclidean distance between self.pose and a point along_lane
+            :return: Error between desired distance from pose to point along path
             """
             beta = self.path.beta_from_along_lane(along_path)
             cp = self.path.center_point(beta)
@@ -78,23 +76,22 @@ class PurePursuit:
         goal_point = self.path.center_point(self.path.beta_from_along_lane(res.x))
         return res.x, goal_point
 
-    def find_goal_point_approx(self) -> Tuple[float, SE2value]:
-        """
-        Approximate goal point on the path, from your projection on the lane advance by lookahead
-        :return:
-        """
-        # todo test this function
-        along_path_goal_point = self.along_path + self.param.look_ahead
-        beta = self.path.beta_from_along_lane(along_path_goal_point)
-        return along_path_goal_point, self.path.center_point(beta)
+    # def find_goal_point_approx(self) -> Tuple[float, SE2value]:
+    #     """
+    #     Approximate goal point on the path, from your projection on the lane advance by lookahead
+    #     :return:
+    #     """
+    #     along_path_goal_point = self.along_path + self.param.look_ahead
+    #     beta = self.path.beta_from_along_lane(along_path_goal_point)
+    #     return along_path_goal_point, self.path.center_point(beta)
 
-    def get_turn_factor(self) -> float:
+    def get_pwmturn_factor(self) -> float:
         """
         gives "rotational velocity"
         :return: float
         """
         if any([_ is None for _ in [self.rel_pose, self.path]]):
-            raise RuntimeError("Attempting to use pure pursuit before having any observations/path")
+            raise RuntimeError("Attempting to use pure pursuit before having set any observations/path")
         p, theta = translation_angle_from_SE2(self.rel_pose)
         _, goal_point = self.find_goal_point()
         p_goal, theta_goal = translation_angle_from_SE2(goal_point)

@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Dict, cast
+from typing import Optional, Dict
 import numpy as np
 from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, GetCommands, PWMCommands, DB20Commands
 from duckietown_world import get_lane_poses, GetLanePoseResult, relative_pose, SE2Transform
@@ -44,12 +44,12 @@ class MyFullAgent(FullAgentBase):
         context.debug(f"speed: {speed}")
         self.pure_pursuit.update_speed(speed_ref)
         if self.myglpr is not None:
-            turn = self.pure_pursuit.get_turn_factor()
+            turn = self.pure_pursuit.get_pwmturn_factor()
         else:
             # totally random fallback
-            turn = 0.05
-        context.debug(f"turn: {turn}")
+            turn = 0.1
 
+        context.debug(f"turn: {turn}")
         pwm_left = float(np.clip(speed - turn / 2, self.pwm_limits[0], self.pwm_limits[1]))
         pwm_right = float(np.clip(speed + turn / 2, self.pwm_limits[0], self.pwm_limits[1]))
 

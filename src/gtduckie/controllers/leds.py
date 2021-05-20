@@ -10,7 +10,7 @@ __all__ = ["LedsController"]
 class LedsController:
     last_speed_cmd: float = 0
     last_turn_cmd: float = 0
-    turn_light_thresh: float = 0.1
+    turn_light_thresh: float = 0.025
 
     def get_led_lights(self, new_speed: float, new_turn: float, t: float) -> LEDSCommands:
         acc = new_speed - self.last_speed_cmd
