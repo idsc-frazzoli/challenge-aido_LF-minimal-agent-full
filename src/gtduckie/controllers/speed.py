@@ -1,10 +1,12 @@
-from typing import Optional, Tuple
+from math import pi
+from typing import Optional, Tuple, Dict
 import numpy as np
 from dataclasses import dataclass
-
-__all__ = ["SpeedController"]
-
+from aido_schemas import DTSimRobotInfo
+from duckietown_world import relative_pose, SE2Transform
 from geometry import xytheta_from_SE2
+
+__all__ = ["SpeedController", "SpeedBehavior"]
 
 
 @dataclass
@@ -16,6 +18,7 @@ class SpeedControllerParam:
 
 
 class SpeedController:
+    """reference tracking of speed"""
 
     def __init__(self):
         self.params = SpeedControllerParam()
@@ -42,3 +45,43 @@ class SpeedController:
                                            self.params.antiwindup[0],
                                            self.params.antiwindup[1])
         return self.params.kP * p_error + self.last_integral_error
+
+
+@dataclass
+class SpeedBehaviorParam:
+    nominal_speed: float = 0.2
+    safety_dist: float = 0.7
+
+
+class SpeedBehavior:
+    """Determines the reference speed"""
+    duckiebots: Dict[str, DTSimRobotInfo]
+    last_speed_ref: float = 0
+
+    def __init__(self, myname: str):
+        self.params: SpeedBehaviorParam = SpeedBehaviorParam()
+        self.myname: str = myname
+
+    def update_observations(self, duckiebots: Dict[str, DTSimRobotInfo]):
+        self.duckiebots = duckiebots
+
+    def get_speed_ref(self, at: float) -> float:
+        """Check if there is anyone on the right too close, then brake"""
+
+        anyone_on_the_right: bool = False
+        for dk_name, dk_sim_robot in self.duckiebots.items():
+            if dk_name == self.myname:
+                pass
+            rel = SE2Transform.from_SE2(relative_pose(
+                self.duckiebots[self.myname].pose, self.duckiebots[dk_name].pose))
+
+            distance = np.linalg.norm(rel.p)
+            coming_from_the_right: bool = pi / 4 <= rel.theta <= pi * 3 / 4
+            if coming_from_the_right and distance < self.params.safety_dist:
+                anyone_on_the_right = True
+                break
+        if anyone_on_the_right:
+            self.last_speed_ref = 0
+        else:
+            self.last_speed_ref = self.params.nominal_speed
+        return self.last_speed_ref

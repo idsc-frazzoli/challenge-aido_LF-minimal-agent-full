@@ -5,14 +5,14 @@ from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, Get
 from duckietown_world import get_lane_poses, GetLanePoseResult, relative_pose, SE2Transform
 
 from gtduckie.agents.base import FullAgentBase
-from gtduckie.controllers import SpeedController, LedsController
+from gtduckie.controllers import SpeedController, LedsController, SpeedBehavior
 from gtduckie.controllers.pure_pursuit import PurePursuit
 
 __all__ = ["MyFullAgent"]
 
 
 class MyFullAgent(FullAgentBase):
-    duckiebots: Dict[str, DTSimRobotInfo]
+    speed_behavior: SpeedBehavior
     speed_controller: SpeedController = SpeedController()
     pure_pursuit: PurePursuit = PurePursuit()
     leds_controller: LedsController = LedsController()
@@ -21,11 +21,12 @@ class MyFullAgent(FullAgentBase):
     def on_received_observations(self, context: Context, data: DB20ObservationsPlusState):
         if self.is_first_callback:
             self.init_observations(context=context, data=data)
-        self.duckiebots: Dict[str, DTSimRobotInfo] = data.state.duckiebots
-        self.mypose = self.duckiebots[self.myname].pose
+            self.speed_behavior = SpeedBehavior(data.your_name)
 
+        self.mypose = data.state.duckiebots[self.myname].pose
+        self.speed_behavior.update_observations(data.state.duckiebots)
         self.speed_controller.update_observations(
-            current_velocity=self.duckiebots[self.myname].velocity)
+            current_velocity=data.state.duckiebots[self.myname].velocity)
 
         # update lane position
         self.update_get_lane_pose_result()
@@ -38,7 +39,7 @@ class MyFullAgent(FullAgentBase):
 
     def on_received_get_commands(self, context: Context, data: GetCommands):
         t0 = time.time()
-        speed_ref: float = .2
+        speed_ref = self.speed_behavior.get_speed_ref(data.at_time)
         self.speed_controller.update_reference(speed_ref)
         speed = speed_ref + self.speed_controller.get_control(at=data.at_time)
         context.debug(f"speed: {speed}")
