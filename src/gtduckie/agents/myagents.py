@@ -2,8 +2,7 @@ import time
 from typing import Optional, Dict, cast
 import numpy as np
 from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, GetCommands, PWMCommands, DB20Commands
-from duckietown_world import get_lane_poses, GetLanePoseResult, relative_pose
-from geometry import SE2value
+from duckietown_world import get_lane_poses, GetLanePoseResult, relative_pose, SE2Transform
 
 from gtduckie.agents.base import FullAgentBase
 from gtduckie.controllers import SpeedController, LedsController
@@ -39,26 +38,20 @@ class MyFullAgent(FullAgentBase):
 
     def on_received_get_commands(self, context: Context, data: GetCommands):
         t0 = time.time()
-        self.speed_controller.update_reference(0.2)
-        speed = self.speed_controller.get_control(at=data.at_time)
+        speed_ref: float = .2
+        self.speed_controller.update_reference(speed_ref)
+        speed = speed_ref + self.speed_controller.get_control(at=data.at_time)
         context.debug(f"speed: {speed}")
-        self.pure_pursuit.update_speed(speed)
+        self.pure_pursuit.update_speed(speed_ref)
         if self.myglpr is not None:
-            # start debug
-            # context.debug(f"mypose: \n{self.mypose}")
-            # _, goal_point = self.pure_pursuit.find_goal_point()
-            # context.debug(f"goal_point: \n{_},{goal_point}")
-            # _, goal_point_approx = self.pure_pursuit.find_goal_point_approx()
-            # context.debug(f"goal_point_approx: \n{_},{goal_point_approx}")
-            # end debug
-            k = 0.1  # fixme need to check signs and teh missing factor for the transformation rad/s -> pwm
             turn = self.pure_pursuit.get_turn_factor()
         else:
-            turn = 0.05  # fixme totally random fallback
+            # totally random fallback
+            turn = 0.05
         context.debug(f"turn: {turn}")
 
-        pwm_left = float(np.clip(speed - turn, self.pwm_limits[0], self.pwm_limits[1]))
-        pwm_right = float(np.clip(speed + turn, self.pwm_limits[0], self.pwm_limits[1]))
+        pwm_left = float(np.clip(speed - turn / 2, self.pwm_limits[0], self.pwm_limits[1]))
+        pwm_right = float(np.clip(speed + turn / 2, self.pwm_limits[0], self.pwm_limits[1]))
 
         pwm_commands = PWMCommands(motor_left=pwm_left, motor_right=pwm_right)
         led_commands = self.leds_controller.get_led_lights(new_speed=speed, new_turn=turn, t=data.at_time)

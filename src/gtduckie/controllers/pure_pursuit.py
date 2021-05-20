@@ -15,9 +15,10 @@ from gtduckie.utils import euclidean_between_SE2value
 
 @dataclass
 class PurePursuitParam:
-    look_ahead: float = 0.2
+    look_ahead: float = 0.25
     min_distance: float = 0.05
     max_extra_distance: float = 0.4
+    k_turn2pwm: float = 0.05
 
 
 class PurePursuit:
@@ -36,6 +37,7 @@ class PurePursuit:
         self.along_path: Optional[float] = None
         self.speed: float = 0
         self.param: PurePursuitParam = PurePursuitParam()
+        print("Pure pursuit params: \n", self.param)
 
     def update_path(self, path: LaneSegment):
         assert isinstance(path, LaneSegment)
@@ -98,4 +100,4 @@ class PurePursuit:
         p_goal, theta_goal = translation_angle_from_SE2(goal_point)
         alpha = theta - np.arctan2(p_goal[1] - p[1], p_goal[0] - p[0])
         radius = self.param.look_ahead / (2 * sin(alpha))
-        return self.speed / radius
+        return - self.param.k_turn2pwm * self.speed / radius
