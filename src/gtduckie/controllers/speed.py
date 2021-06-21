@@ -50,7 +50,8 @@ class SpeedController:
 @dataclass
 class SpeedBehaviorParam:
     nominal_speed: float = 0.2
-    safety_dist: float = 0.7
+    safety_dist_right: float = 0.7
+    safety_dist_front: float = 0.25
 
 
 class SpeedBehavior:
@@ -68,7 +69,18 @@ class SpeedBehavior:
     def get_speed_ref(self, at: float) -> float:
         """Check if there is anyone on the right too close, then brake"""
 
-        anyone_on_the_right: bool = False
+        yield_to_anyone: bool = self.is_there_anyone_to_yield_to()
+        if yield_to_anyone:
+            self.last_speed_ref = 0
+        else:
+            self.last_speed_ref = self.params.nominal_speed
+        return self.last_speed_ref
+
+    def is_there_anyone_to_yield_to(self) -> bool:
+        """
+        If someone is approaching from the right or someone is in front of us we yield
+        """
+
         for dk_name, dk_sim_robot in self.duckiebots.items():
             if dk_name == self.myname:
                 pass
@@ -77,11 +89,8 @@ class SpeedBehavior:
 
             distance = np.linalg.norm(rel.p)
             coming_from_the_right: bool = pi / 4 <= rel.theta <= pi * 3 / 4
-            if coming_from_the_right and distance < self.params.safety_dist:
-                anyone_on_the_right = True
-                break
-        if anyone_on_the_right:
-            self.last_speed_ref = 0
-        else:
-            self.last_speed_ref = self.params.nominal_speed
-        return self.last_speed_ref
+            in_front_of_me: bool = rel.p[0] > 0 and -pi / 4 <= rel.theta <= pi / 4
+            if (coming_from_the_right and distance < self.params.safety_dist_right) or (
+                    in_front_of_me and distance < self.params.safety_dist_front):
+                return True
+        return False
