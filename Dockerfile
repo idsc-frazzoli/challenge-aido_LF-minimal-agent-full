@@ -1,5 +1,8 @@
 ARG AIDO_REGISTRY
-FROM ${AIDO_REGISTRY}/duckietown/aido-base-python3:daffy-amd64
+ARG ARCH=amd64
+ARG MAJOR=daffy
+ARG BASE_TAG=${MAJOR}-${ARCH}
+FROM ${AIDO_REGISTRY}/duckietown/aido-base-python3:${BASE_TAG}
 
 ARG PIP_INDEX_URL
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
