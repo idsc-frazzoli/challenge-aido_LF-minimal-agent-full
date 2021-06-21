@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
-from aido_schemas import Context, EpisodeStart, DB20ObservationsPlusState, GetCommands
-from typing import Optional, cast, Tuple
+from typing import cast, Optional, Tuple
 
-from duckietown_world import DuckietownMap, construct_map, GetLanePoseResult, get_lane_poses
 import numpy as np
 import yaml
+
+from aido_schemas import (Context, DB20ObservationsOnlyState, EpisodeStart,
+                          GetCommands)
+from duckietown_world import construct_map, DuckietownMap
 
 __all__ = ["FullAgentBase"]
 
@@ -32,10 +34,10 @@ class FullAgentBase(ABC):
         context.info(f'Starting episode "{data.episode_name}".')
 
     @abstractmethod
-    def on_received_observations(self, context: Context, data: DB20ObservationsPlusState):
+    def on_received_observations(self, context: Context, data: DB20ObservationsOnlyState):
         pass
 
-    def init_observations(self, context: Context, data: DB20ObservationsPlusState):
+    def init_observations(self, context: Context, data: DB20ObservationsOnlyState):
         self.myname = data.your_name
         context.info(f'Myname is {self.myname}')
         if self.dtmap is None:
@@ -53,4 +55,3 @@ class FullAgentBase(ABC):
     @staticmethod
     def finish(context: Context):
         context.info("finish()")
-

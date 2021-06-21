@@ -1,12 +1,13 @@
 import time
-from typing import Optional, Dict
-import numpy as np
-from aido_schemas import DB20ObservationsPlusState, Context, DTSimRobotInfo, GetCommands, PWMCommands, DB20Commands
-from duckietown_world import get_lane_poses, GetLanePoseResult, relative_pose, SE2Transform
+from typing import Optional
 
-from gtduckie.agents.base import FullAgentBase
-from gtduckie.controllers import SpeedController, LedsController, SpeedBehavior
-from gtduckie.controllers.pure_pursuit import PurePursuit
+import numpy as np
+
+from aido_schemas import (Context, DB20Commands, DB20ObservationsOnlyState, DB20ObservationsPlusState,
+                          GetCommands, PWMCommands)
+from duckietown_world import get_lane_poses, GetLanePoseResult, relative_pose
+from gtduckie.controllers import LedsController, PurePursuit, SpeedBehavior, SpeedController
+from .base import FullAgentBase
 
 __all__ = ["MyFullAgent"]
 
@@ -18,7 +19,7 @@ class MyFullAgent(FullAgentBase):
     leds_controller: LedsController = LedsController()
     myglpr: Optional[GetLanePoseResult] = None
 
-    def on_received_observations(self, context: Context, data: DB20ObservationsPlusState):
+    def on_received_observations(self, context: Context, data: DB20ObservationsOnlyState):
         if self.is_first_callback:
             self.init_observations(context=context, data=data)
             self.speed_behavior = SpeedBehavior(data.your_name)

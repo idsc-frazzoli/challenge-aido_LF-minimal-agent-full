@@ -1,11 +1,12 @@
 from random import choice
+
 import contracts
+
 from duckietown_world.world_duckietown.sampling_poses import sample_good_starting_pose
 
 contracts.disable_all()
 
 import numpy as np
-from geometry import translation_angle_from_SE2
 
 from duckietown_world import SE2Transform, get_lane_poses
 import duckietown_world as dw
@@ -15,7 +16,6 @@ dw.logger.setLevel(50)
 
 
 def test_lane_to_follow():
-
     available_map = dw.list_maps()
     print(available_map)
     map_name = choice(available_map)
@@ -29,7 +29,6 @@ def test_lane_to_follow():
     possibilities = list(get_lane_poses(m, q))
     print(f"There are {len(possibilities)} possibilities")
     glpr = possibilities[0]
-    from zuper_typing import debug_print
 
     ctr_points = glpr.lane_segment.control_points
     abs_ctr_points = []

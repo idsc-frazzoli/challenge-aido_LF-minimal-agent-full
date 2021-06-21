@@ -1,7 +1,8 @@
-from math import sin, cos, pi
 from typing import Tuple, Union
+
 import contracts
-from geometry import SE2value, SE2_from_translation_angle
+from geometry import SE2_from_translation_angle, SE2value
+from math import cos, pi, sin
 
 from gtduckie.utils import euclidean_between_SE2value
 
@@ -85,7 +86,7 @@ def test_agent():
 def test_speed_behavior():
     ax = plt.axes()
     p1 = SE2_from_translation_angle([0, 0], 0)
-    p2 = SE2_from_translation_angle([1, -1],  pi / 4)
+    p2 = SE2_from_translation_angle([1, -1], pi / 4)
     p3 = SE2_from_translation_angle([0.3, .2], - pi)
     for p in [p1, p2, p3]:
         tail, head = arrow_from_SE2(p)

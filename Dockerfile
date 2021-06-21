@@ -4,17 +4,16 @@ FROM ${AIDO_REGISTRY}/duckietown/aido-base-python3:daffy-amd64
 ARG PIP_INDEX_URL
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 
-RUN pip3 install -U "pip>=20.2"
 COPY requirements.* ./
 RUN cat requirements.* > .requirements.txt
-RUN pip3 install --use-feature=2020-resolver -r .requirements.txt
-# fixme why this line?
-RUN pip3 uninstall dataclasses -y
+RUN python3 -m pip  install -r .requirements.txt
 
 COPY . .
 
-RUN python setup.py install
+RUN python3 -m pip install .
+# fixme why this line? - some packages install dataclasses (an old compat package)
+RUN python3 -m pip  uninstall dataclasses -y
 
-RUN PYTHONPATH=. python -c "from agent_full import *"
+RUN node-launch --config node_launch.yaml --check
 
-ENTRYPOINT ["python3", "agent_full.py"]
+ENTRYPOINT ["node-launch", "--config", "node_launch.yaml"]
